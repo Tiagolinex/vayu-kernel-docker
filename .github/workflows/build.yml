@@ -59,8 +59,8 @@ jobs:
           echo "Configuring kernel with defconfig..."
           make $MAKE_ARGS vendor/sm8150-perf_defconfig vendor/xiaomi/sm8150-common.config vendor/xiaomi/vayu.config
 
-          echo "Compiling Image.gz-dtb..."
-          make -j$(nproc --all) $MAKE_ARGS Image.gz-dtb
+          echo "Compiling Image.gz..."
+          make -j$(nproc --all) $MAKE_ARGS Image.gz
 
       - name: Package with AnyKernel3
         run: |
@@ -70,7 +70,7 @@ jobs:
           sed -i 's/device.name2=.*/device.name2=bhima/' anykernel/anykernel.sh
           sed -i 's/device.name3=.*/device.name3=M2102J20SG/' anykernel/anykernel.sh
           sed -i 's/device.name4=.*/device.name4=M2102J20SI/' anykernel/anykernel.sh
-          sed -i 's|BLOCK=.*|BLOCK=auto;|' anykernel/anykernel.sh
+          sed -i 's|BLOCK=.*|BLOCK=/dev/block/by-name/boot;|' anykernel/anykernel.sh
           sed -i 's/IS_SLOT_DEVICE=.*/IS_SLOT_DEVICE=0;/' anykernel/anykernel.sh
 
           if [ -f kernel/out/arch/arm64/boot/Image.gz-dtb ]; then
