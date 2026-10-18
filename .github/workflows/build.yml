@@ -1,4 +1,4 @@
-name: Build Docker-enabled Kernel for Poco X3 Pro (vayu)
+name: Build CreeviexOs Server Kernel for Poco X3 Pro (vayu)
 
 on:
   workflow_dispatch:
@@ -7,65 +7,65 @@ on:
 
 jobs:
   build:
-    name: Compile LineageOS 22.2 Kernel
+    name: Compile Patched CreeviexOs Kernel
     runs-on: ubuntu-22.04
+    timeout-minutes: 120
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up build environment
+      - name: Install build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            bc bison build-essential curl flex \
-            git libssl-dev libelf-dev zip libxml2-utils \
-            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
-            gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi \
-            python3 python-is-python3 cpio
+          sudo apt update
+          sudo apt install -y bc bison flex libssl-dev libelf-dev \
+            python3 zip unzip wget kmod cpio device-tree-compiler \
+            ccache lld llvm clang gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi \
+            libxml2-utils
 
-      - name: Clone Proton Clang toolchain
+      - name: Clone CreeviexOs Kernel Source
         run: |
-          git clone --depth=1 https://github.com/kdrag0n/proton-clang.git "$GITHUB_WORKSPACE/clang"
+          git clone --depth=1 https://github.com/creeviexos/CreeviexOs-Kernel-vayu.git kernel
 
-      - name: Clone LineageOS sm8150 Kernel (branch lineage-22.2)
+      - name: Inject Docker & Server Configs
         run: |
-          git clone --depth=1 -b lineage-22.2 https://github.com/LineageOS/android_kernel_xiaomi_sm8150.git kernel
+          echo "" >> kernel/arch/arm64/configs/vayu_defconfig
+          echo "# --- DOCKER & SERVER OPTIMIZATIONS ---" >> kernel/arch/arm64/configs/vayu_defconfig
+          cat docker.config >> kernel/arch/arm64/configs/vayu_defconfig
+          echo "Merged Docker & Server config into vayu_defconfig:"
+          tail -n 45 kernel/arch/arm64/configs/vayu_defconfig
 
-      - name: Inject Docker & Container configs
-        run: |
-          echo "" >> kernel/arch/arm64/configs/vendor/xiaomi/vayu.config
-          echo "# --- DOCKER CONTAINER SUPPORT FLAGS ---" >> kernel/arch/arm64/configs/vendor/xiaomi/vayu.config
-          cat docker.config >> kernel/arch/arm64/configs/vendor/xiaomi/vayu.config
-          echo "Merged Docker config into vayu.config:"
-          tail -n 35 kernel/arch/arm64/configs/vendor/xiaomi/vayu.config
-
-      - name: Compile Kernel Image and DTBs
+      - name: Compile CreeviexOs Kernel
         run: |
           cd kernel
-          export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export KBUILD_BUILD_USER=Tiagolinex
+          export KBUILD_BUILD_HOST=github-ci
 
-          MAKE_ARGS="O=out \
-            ARCH=arm64 \
-            SUBARCH=arm64 \
-            CC=clang \
-            HOSTCC=clang \
-            HOSTCXX=clang++ \
+          echo "Configuring kernel with vayu_defconfig..."
+          make O=out ARCH=arm64 vayu_defconfig
+
+          echo "Compiling Kernel Image..."
+          make -j$(nproc) O=out ARCH=arm64 \
+            CC=clang LD=ld.lld \
+            AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy \
+            OBJDUMP=llvm-objdump STRIP=llvm-strip \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
-            KCFLAGS=-w"
-
-          echo "Configuring kernel with defconfig..."
-          make $MAKE_ARGS vendor/sm8150-perf_defconfig vendor/xiaomi/sm8150-common.config vendor/xiaomi/vayu.config
-
-          echo "Compiling Image.gz..."
-          make -j$(nproc --all) $MAKE_ARGS Image.gz
+            Image.gz-dtb 2>&1 | tee build.log || \
+          make -j$(nproc) O=out ARCH=arm64 \
+            CC=clang LD=ld.lld \
+            AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy \
+            OBJDUMP=llvm-objdump STRIP=llvm-strip \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            Image.gz 2>&1 | tee -a build.log
 
       - name: Package with AnyKernel3
         run: |
-          git clone --depth=1 https://github.com/osm0sis/AnyKernel3.git anykernel
-          sed -i 's/kernel.string=.*/kernel.string=LineageOS 22.2 Docker Kernel for Poco X3 Pro/' anykernel/anykernel.sh
+          git clone --depth=1 https://github.com/osm0sis/AnyKernel3 anykernel
+          sed -i 's/kernel.string=.*/kernel.string=CreeviexOs Kernel (Docker & Server Mod) for Poco X3 Pro/' anykernel/anykernel.sh
           sed -i 's/device.name1=.*/device.name1=vayu/' anykernel/anykernel.sh
           sed -i 's/device.name2=.*/device.name2=bhima/' anykernel/anykernel.sh
           sed -i 's/device.name3=.*/device.name3=M2102J20SG/' anykernel/anykernel.sh
@@ -81,17 +81,25 @@ jobs:
             cp kernel/out/arch/arm64/boot/Image anykernel/Image
           fi
 
+          find kernel/out/arch/arm64/boot/dts -name "*.dtb" -exec cp {} anykernel/ \; 2>/dev/null || true
           if [ -f kernel/out/arch/arm64/boot/dtbo.img ]; then
             cp kernel/out/arch/arm64/boot/dtbo.img anykernel/
           fi
 
           cd anykernel
-          zip -r9 ../AnyKernel3-vayu-LineageOS22.2-Docker.zip * -x .git README.md *placeholder
-          ls -lh ../AnyKernel3-vayu-LineageOS22.2-Docker.zip
+          zip -r9 ../AnyKernel3-CreeviexOs-Server-vayu.zip * -x .git README.md *placeholder
+          ls -lh ../AnyKernel3-CreeviexOs-Server-vayu.zip
 
       - name: Upload Kernel Flashable Zip
         uses: actions/upload-artifact@v4
         with:
-          name: AnyKernel3-vayu-LineageOS22.2-Docker
-          path: AnyKernel3-vayu-LineageOS22.2-Docker.zip
+          name: AnyKernel3-CreeviexOs-Server-vayu
+          path: AnyKernel3-CreeviexOs-Server-vayu.zip
           retention-days: 7
+
+      - name: Upload Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: kernel/build.log

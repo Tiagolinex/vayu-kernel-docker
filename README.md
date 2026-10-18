@@ -1,11 +1,19 @@
-# vayu-kernel-docker
+# CreeviexOs Server Kernel for Poco X3 Pro (vayu)
 
-Automated build workflow to compile a Docker-ready Linux kernel for the **Xiaomi POCO X3 Pro (`vayu` / `bhima`)** running **LineageOS 22.2 (Android 15)**.
+Automated build workflow to compile the **CreeviexOs Kernel** with enhanced Docker & Home Server features for the **Xiaomi POCO X3 Pro (`vayu` / `bhima`)**.
 
-## Enabled Kernel Features
-- Full Namespaces (`CONFIG_NAMESPACES`, `CONFIG_PID_NS`, `CONFIG_NET_NS`, `CONFIG_IPC_NS`, `CONFIG_UTS_NS`, `CONFIG_USER_NS`)
-- Control Groups (`CONFIG_CGROUPS`, `CONFIG_CGROUP_DEVICE`, `CONFIG_CGROUP_PIDS`, `CONFIG_MEMCG`, `CONFIG_CPUSETS`)
-- Container Networking & Storage (`CONFIG_BRIDGE`, `CONFIG_VETH`, `CONFIG_OVERLAY_FS`, `CONFIG_IP_NF_NAT`, `CONFIG_NETFILTER_XT_MATCH_ADDRTYPE`)
+## Source Base
+- Based on [creeviexos/CreeviexOs-Kernel-vayu](https://github.com/creeviexos/CreeviexOs-Kernel-vayu) (KernelSU, Audio Fix, Performance & Display tweaks for vayu).
+
+## Injected Server & Docker Features
+- **High Performance Networking:** TCP BBR + Fair Queuing (FQ) as default congestion control.
+- **Docker & Container Namespaces:** Namespaces (PID, NET, IPC, UTS, USER), Control Groups (cgroups v1/v2, cpu, memcg, devices), OverlayFS, Bridge, VETH.
+- **Memory Optimization:** ZRAM with ZSTD compression + writeback.
+- **Flash Storage Multitasking:** BFQ I/O Scheduler tuned for UFS 3.1.
+- **Network Filesystems:** CIFS/SMB and NFS client support for mounting NAS and Windows shares.
+- **Smart Home & USB Dongles:** USB-Serial drivers (CH341, CP210X, FTDI, ACM) for Zigbee/Z-Wave antennas.
+- **Filesystem Compression:** Transparent F2FS compression with ZSTD.
+- **Firewall & Routing:** IPSet and IPVS modules.
 
 ## Output
-Flashable **AnyKernel3** zip package compatible with OrangeFox, TWRP, or Lineage Recovery.
+Flashable **AnyKernel3** zip package compatible with OrangeFox, TWRP, or Recovery.
